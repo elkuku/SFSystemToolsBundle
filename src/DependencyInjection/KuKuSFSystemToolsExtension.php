@@ -17,7 +17,7 @@ public function getAlias(): string
 
     public function load(array $configs, ContainerBuilder $container)
     {
-        $loader = new XmlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
+        $loader = new XmlFileLoader($container, new FileLocator(__DIR__.'/../../config'));
         $loader->load('services.xml');
 
         $configuration = $this->getConfiguration($configs, $container);
@@ -26,8 +26,5 @@ public function getAlias(): string
         $definition = $container->getDefinition('kuku_sf_system_tools.system_info');
         $definition->setArgument(0, $config['expose_sf_version']);
         $definition->setArgument(1, $config['expose_php_version']);
-        #dump($config);
-        #dump('Were alive');
-        #die();
     }
 }

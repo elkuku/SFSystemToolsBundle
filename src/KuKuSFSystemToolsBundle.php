@@ -15,20 +15,9 @@ use Symfony\Component\HttpKernel\Bundle\BundleExtension;
 class KuKuSFSystemToolsBundle extends AbstractBundle
 {
     public string $extensionAlias = 'kuku_sf_system_tools';
-    public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder):void
-    {
-        var_dump($config);die('jjx');
-        $loader = new XmlFileLoader($builder, new FileLocator(__DIR__.'/Resources/config'));
-        $loader->load('services.xml');
-
-        //$configuration = $this->configure();
-    }
 
     public function getContainerExtension(): ?ExtensionInterface
     {
-        #dd(new BundleExtension($this, $this->extensionAlias));
-        #$extensionAlias = Container::underscore(preg_replace('/Bundle$/', '', $this->getName()));
-        #dd($extensionAlias);
         if (null === $this->extension) {
             return new KuKuSFSystemToolsExtension();
         }

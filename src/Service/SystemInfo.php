@@ -1,17 +1,23 @@
 <?php
 
 namespace KuKu\SFSystemToolsBundle\Service;
-class SystemInfo
+
+use Symfony\Component\HttpKernel\Kernel;
+
+readonly class SystemInfo
 {
     public function __construct(
         private bool $exposeSFVersion = false,
-        private bool $exposePHPVersion = false
+        private bool $exposePHPVersion = false,
     )
     {
     }
 
-    public function getInfo()
+    public function getInfo(): array
     {
-        return $this->exposeSFVersion ? 'x' : 'y';
+        return [
+            'sf_version' => $this->exposeSFVersion ? Kernel::VERSION : 'N/A',
+            'php_version' => $this->exposePHPVersion ? PHP_VERSION : 'N/A',
+        ];
     }
 }
