@@ -1,0 +1,4 @@
+kuku_sf_system_info:
+  path: /
+  defaults:
+    _controller: 'kuku_sf_system_tools.system_info_controller'

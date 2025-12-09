@@ -3,17 +3,14 @@
 namespace KuKu\SFSystemToolsBundle\Controller;
 
 use KuKu\SFSystemToolsBundle\Service\SystemInfo;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class SFSystemToolsController extends AbstractController
+class SFSystemToolsController
 {
-    public function __construct(private readonly SystemInfo $systemInfo)
-    {
-    }
+    public function __construct(private readonly SystemInfo $systemInfo) {}
 
-    public function index(): JsonResponse
+    public function __invoke(): JsonResponse
     {
-        return $this->json($this->systemInfo->getInfo());
+        return new JsonResponse($this->systemInfo->getInfo());
     }
 }
