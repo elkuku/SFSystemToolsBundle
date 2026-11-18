@@ -1,0 +1,15 @@
+# The admin pages. Import them with the prefix you want, e.g. /system:
+#   kuku_sf_system_admin:
+#     resource: '@KuKuSFSystemToolsBundle/config/routes/admin.yaml'
+#     prefix: /system
+kuku_sf_system_about:
+  path: /about
+  methods: GET
+  defaults:
+    _controller: 'kuku_sf_system_tools.about_controller'
+
+kuku_sf_system_logview:
+  path: /logview
+  methods: GET
+  defaults:
+    _controller: 'kuku_sf_system_tools.logview_controller'

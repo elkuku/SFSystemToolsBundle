@@ -1,0 +1,37 @@
+{% extends base_template %}
+
+{% block title %}Deploy log{% endblock %}
+
+{% block body %}
+    <h1>Deploy log</h1>
+    <p class="text-body-secondary"><code>{{ log_file }}</code></p>
+
+    {% if error %}
+        <div class="alert alert-warning">{{ error }}</div>
+    {% elseif runs is empty %}
+        <div class="alert alert-info">The deploy log is empty.</div>
+    {% endif %}
+
+    <div class="accordion" id="kuku-deploy-log">
+        {% for run in runs %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#kuku-deploy-run-{{ loop.index }}" aria-expanded="false"
+                            aria-controls="kuku-deploy-run-{{ loop.index }}">
+                        {{ run.startedAt ?? 'Output outside a deploy run' }}
+                        {% if not run.finished %}
+                            <span class="badge text-bg-danger ms-2">did not finish</span>
+                        {% endif %}
+                    </button>
+                </h2>
+                <div id="kuku-deploy-run-{{ loop.index }}" class="accordion-collapse collapse"
+                     data-bs-parent="#kuku-deploy-log">
+                    <div class="accordion-body">
+                        <pre class="mb-0">{{ run.output }}</pre>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}
