@@ -2,7 +2,8 @@
 
 A small Symfony bundle with system pages for a project:
 
-- **`/system/info/`**: the Symfony and PHP versions as JSON, for monitoring tools such as the KuKu project checker.
+- **`/system/info/`**: the Symfony and PHP versions as JSON, optionally the database version and the last deploy, for
+  monitoring tools such as the KuKu project checker.
 - **About** (optional): cards with the Symfony version and its maintenance dates, PHP settings and extensions, the
   database (platform, server version and whether the configured `serverVersion` matches it, if Doctrine DBAL is
   installed) and the server (host, OS, web server, free disk space, load). Values that need attention are flagged.
@@ -34,7 +35,26 @@ The versions are hidden (`N/A`) unless you expose them in `config/packages/kuku_
 kuku_sf_system_tools:
   expose_sf_version: true
   expose_php_version: true
+  expose_db_version: true    # adds db_platform and db_version, needs Doctrine DBAL
+  expose_last_deploy: true   # adds last_deploy, read from admin.deploy_log
 ```
+
+The endpoint is public, so only expose what you are fine with anyone seeing. With everything exposed:
+
+```json
+{
+  "sf_version": "8.1.11",
+  "php_version": "8.5.13",
+  "db_platform": "mariadb",
+  "db_version": "12.3.4-MariaDB-deb12",
+  "last_deploy": {"at": "2026-11-23T15:45:02+00:00", "status": "ok"}
+}
+```
+
+`db_platform` is one of `mariadb`, `mysql`, `postgresql`, `sqlite`, `sqlserver` or `oracle`, and `db_version` is what the
+server reports. Both are `null` if the database can't be reached. `last_deploy` is the newest run of the deploy log:
+`at` is its start (`null` if its date line can't be read) and `status` is `ok`, `errors` or `unfinished`; it is `null`
+without a deploy log. The keys are left out when not exposed.
 
 ## About and deploy log pages
 
