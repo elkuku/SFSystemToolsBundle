@@ -110,6 +110,28 @@ class AboutInfoTest extends TestCase
         self::assertSame('warning', $row[2], 'Same number, but MySQL instead of MariaDB');
     }
 
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function serverVersions(): iterable
+    {
+        yield 'PostgreSQL, major only' => ['16', '16.4 (Debian 16.4-1.pgdg120+1)', 'ok'];
+        yield 'PostgreSQL, older server' => ['16', '13.23 (Debian 13.23-1.pgdg120+1)', 'warning'];
+        yield 'PostgreSQL, minor configured' => ['16.4', '16.2', 'warning'];
+        yield 'MySQL' => ['8.0.32', '8.0.45', 'ok'];
+        yield 'MySQL, old replication prefix' => ['8.4', '5.5.5-8.4.3', 'ok'];
+        yield 'MariaDB' => ['12.3.4-MariaDB', '12.3.4-MariaDB-deb12', 'ok'];
+        yield 'MariaDB, other minor' => ['12.3.4-MariaDB', '12.2.1-MariaDB', 'warning'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('serverVersions')]
+    public function testComparesTheConfiguredServerVersion(string $configured, string $actual, string $state): void
+    {
+        $info = new AboutInfo($this->kernel(), $this->connection($actual, $configured));
+
+        self::assertSame($state, $this->rows($info->sections(), 'Database')['Configured serverVersion'][2]);
+    }
+
     public function testAFailingConnection(): void
     {
         $info = new AboutInfo($this->kernel(), $this->connection('', null, true));

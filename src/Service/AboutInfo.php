@@ -178,15 +178,22 @@ class AboutInfo
     }
 
     /**
-     * Compares the major and minor version and the flavor (MariaDB or not), e.g.
-     * "12.3.4-MariaDB" matches "12.3.4-MariaDB-deb12", but "5.7" doesn't.
+     * Compares the version as far as it is configured (at most major and minor) and the
+     * flavor (MariaDB or not): "12.3.4-MariaDB" matches "12.3.4-MariaDB-deb12", "16"
+     * matches "16.4 (Debian 16.4-1)", but "5.7" doesn't match MariaDB 12.3.
      */
     private function sameVersion(string $configured, string $actual): bool
     {
-        $short = static fn (string $v): string => preg_match('/^(\d+)\.(\d+)/', $v, $m) ? $m[1].'.'.$m[2] : $v;
+        $parts = static fn (string $v): array => preg_match('/^(?:5\.5\.5-)?(\d+)(?:\.(\d+))?/', $v, $m) ? array_slice($m, 1) : [];
         $mariaDb = static fn (string $v): bool => false !== stripos($v, 'mariadb');
 
-        return $short($configured) === $short($actual) && $mariaDb($configured) === $mariaDb($actual);
+        $wanted = $parts($configured);
+        $running = $parts($actual);
+        if ([] === $wanted || [] === $running) {
+            return $configured === $actual;
+        }
+
+        return \array_slice($running, 0, \count($wanted)) === $wanted && $mariaDb($configured) === $mariaDb($actual);
     }
 
     public static function bytes(float $bytes): string
