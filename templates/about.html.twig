@@ -3,8 +3,39 @@
 {% block title %}About{% endblock %}
 
 {% block body %}
-    <h1>About</h1>
-    <p class="text-body-secondary"><code>{{ project_dir }}</code></p>
+    {% set states = {
+        ok: 'text-bg-success',
+        warning: 'text-bg-warning',
+        danger: 'text-bg-danger',
+    } %}
 
-    <pre>{{ about }}</pre>
+    <h1 class="mb-1">About</h1>
+    <p class="small text-body-secondary mb-4"><code>{{ project_dir }}</code></p>
+
+    <div class="row row-cols-1 row-cols-lg-2 g-4 mb-4">
+        {% for section in sections %}
+            <div class="col">
+                <div class="card h-100 kuku-about-section">
+                    <div class="card-header fw-semibold">{{ section.title }}</div>
+                    <ul class="list-group list-group-flush">
+                        {% for row in section.rows %}
+                            <li class="list-group-item d-flex justify-content-between align-items-baseline gap-3">
+                                <span class="text-body-secondary text-nowrap">{{ row[0] }}</span>
+                                {% if row[2] %}
+                                    <span class="badge {{ states[row[2]] }} text-wrap text-end">{{ row[1] }}</span>
+                                {% else %}
+                                    <span class="text-end text-break font-monospace small">{{ row[1] }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <details class="card kuku-about-raw">
+        <summary class="card-header">Output of <code>bin/console about</code></summary>
+        <pre class="card-body small mb-0 overflow-auto">{{ about }}</pre>
+    </details>
 {% endblock %}

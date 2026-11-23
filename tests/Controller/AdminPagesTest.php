@@ -152,8 +152,26 @@ class AdminPagesTest extends TestCase
         $crawler = $client->request('GET', '/system/about');
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        self::assertStringContainsString('Symfony', $crawler->filter('pre')->text());
+        self::assertStringContainsString('Symfony', $crawler->filter('.kuku-about-raw pre')->text());
         self::assertSame('About', $crawler->filter('title')->text());
+    }
+
+    public function testAboutShowsTheSections(): void
+    {
+        $client = $this->client();
+        $crawler = $client->request('GET', '/system/about', server: ['SERVER_SOFTWARE' => 'nginx/1.26']);
+
+        // The test app has no Doctrine, so there is no database section.
+        self::assertSame(
+            ['Symfony', 'PHP', 'Server'],
+            $crawler->filter('.kuku-about-section .card-header')->each(static fn ($node) => trim($node->text())),
+        );
+        self::assertStringContainsString(\Symfony\Component\HttpKernel\Kernel::VERSION, $crawler->filter('.kuku-about-section')->first()->text());
+        // The test kernel runs in "test" with debug on: both are flagged.
+        $warnings = $crawler->filter('.kuku-about-section')->first()->filter('.badge.text-bg-warning')->each(static fn ($node) => $node->text());
+        self::assertContains('test', $warnings);
+        self::assertContains('on', $warnings);
+        self::assertStringContainsString('nginx/1.26', $crawler->filter('.kuku-about-section')->last()->text());
     }
 
     public function testThePagesNeedTheRole(): void

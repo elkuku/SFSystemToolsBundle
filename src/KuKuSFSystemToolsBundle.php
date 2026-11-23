@@ -5,6 +5,7 @@ namespace KuKu\SFSystemToolsBundle;
 use KuKu\SFSystemToolsBundle\Controller\AboutController;
 use KuKu\SFSystemToolsBundle\Controller\LogviewController;
 use KuKu\SFSystemToolsBundle\Controller\SFSystemToolsController;
+use KuKu\SFSystemToolsBundle\Service\AboutInfo;
 use KuKu\SFSystemToolsBundle\Service\DeployLogParser;
 use KuKu\SFSystemToolsBundle\Service\SystemInfo;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -77,6 +78,14 @@ class KuKuSFSystemToolsBundle extends AbstractBundle
             ->alias(DeployLogParser::class, 'kuku_sf_system_tools.deploy_log_parser');
 
         $services
+            ->set('kuku_sf_system_tools.about_info', AboutInfo::class)
+            ->args([
+                service('kernel'),
+                // Optional: projects without Doctrine get no database section.
+                service('doctrine.dbal.default_connection')->nullOnInvalid(),
+            ]);
+
+        $services
             ->set('kuku_sf_system_tools.about_controller', AboutController::class)
             ->args([
                 service('kernel'),
@@ -84,6 +93,7 @@ class KuKuSFSystemToolsBundle extends AbstractBundle
                 service('security.authorization_checker'),
                 $admin['role'],
                 $admin['base_template'],
+                service('kuku_sf_system_tools.about_info'),
             ])
             ->tag('controller.service_arguments');
 

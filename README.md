@@ -3,7 +3,10 @@
 A small Symfony bundle with system pages for a project:
 
 - **`/system/info/`**: the Symfony and PHP versions as JSON, for monitoring tools such as the KuKu project checker.
-- **About** (optional): the output of the `about` console command.
+- **About** (optional): cards with the Symfony version and its maintenance dates, PHP settings and extensions, the
+  database (platform, server version and whether the configured `serverVersion` matches it, if Doctrine DBAL is
+  installed) and the server (host, OS, web server, free disk space, load). Values that need attention are flagged.
+  The output of the `about` console command is below, folded.
 - **Deploy log** (optional): the runs of `bin/deploy` from its log file. A calendar marks the days with runs in the color
   of their status (deployed, finished with errors, did not finish); next to it are the details of one run, the newest by
   default: when it ran, the other runs of that day, and its output split into the deploy steps, with `[OK]` lines in green
