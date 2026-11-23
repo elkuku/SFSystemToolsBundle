@@ -3,35 +3,177 @@
 {% block title %}Deploy log{% endblock %}
 
 {% block body %}
-    <h1>Deploy log</h1>
-    <p class="text-body-secondary"><code>{{ log_file }}</code></p>
+    {% set statuses = {
+        ok: {badge: 'text-bg-success', button: 'btn-success', outline: 'btn-outline-success', label: 'Deployed', icon: '✓'},
+        errors: {badge: 'text-bg-warning', button: 'btn-warning', outline: 'btn-outline-warning', label: 'Finished with errors', icon: '!'},
+        unfinished: {badge: 'text-bg-danger', button: 'btn-danger', outline: 'btn-outline-danger', label: 'Did not finish', icon: '✕'},
+    } %}
+
+    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+        <h1 class="mb-0">Deploy log</h1>
+        {% if run_count > 0 %}
+            <div class="text-body-secondary kuku-deploy-summary">
+                {{ run_count }} {{ run_count == 1 ? 'run' : 'runs' }}
+                {% if latest_ago %}
+                    · last deploy {{ latest_ago }}
+                {% endif %}
+                {% if failed_count > 0 %}
+                    · <span class="text-danger">{{ failed_count }} with problems</span>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+    <p class="small text-body-secondary mb-4"><code>{{ log_file }}</code></p>
 
     {% if error %}
         <div class="alert alert-warning">{{ error }}</div>
-    {% elseif runs is empty %}
+    {% elseif run_count == 0 %}
         <div class="alert alert-info">The deploy log is empty.</div>
-    {% endif %}
-
-    <div class="accordion" id="kuku-deploy-log">
-        {% for run in runs %}
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#kuku-deploy-run-{{ loop.index }}" aria-expanded="false"
-                            aria-controls="kuku-deploy-run-{{ loop.index }}">
-                        {{ run.startedAt ?? 'Output outside a deploy run' }}
-                        {% if not run.finished %}
-                            <span class="badge text-bg-danger ms-2">did not finish</span>
+    {% else %}
+        <div class="row g-4">
+            {# Calendar #}
+            <div class="col-lg-4">
+                <div class="card kuku-deploy-calendar">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        {% if calendar.prev %}
+                            <a class="btn btn-sm btn-outline-secondary" href="?run={{ selected }}&month={{ calendar.prev }}"
+                               title="Earlier runs" aria-label="Earlier runs">‹</a>
+                        {% else %}
+                            <span class="btn btn-sm btn-outline-secondary disabled" aria-hidden="true">‹</span>
                         {% endif %}
-                    </button>
-                </h2>
-                <div id="kuku-deploy-run-{{ loop.index }}" class="accordion-collapse collapse"
-                     data-bs-parent="#kuku-deploy-log">
-                    <div class="accordion-body">
-                        <pre class="mb-0">{{ run.output }}</pre>
+                        <span class="fw-semibold">{{ calendar.label }}</span>
+                        {% if calendar.next %}
+                            <a class="btn btn-sm btn-outline-secondary" href="?run={{ selected }}&month={{ calendar.next }}"
+                               title="Later runs" aria-label="Later runs">›</a>
+                        {% else %}
+                            <span class="btn btn-sm btn-outline-secondary disabled" aria-hidden="true">›</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-2">
+                        <table class="table table-sm table-borderless text-center align-middle mb-0">
+                            <thead>
+                                <tr class="small text-body-secondary">
+                                    {% for name in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] %}
+                                        <th class="fw-normal">{{ name }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for week in calendar.weeks %}
+                                    <tr>
+                                        {% for day in week %}
+                                            <td class="p-1">
+                                                {% if day is null %}
+                                                {% elseif day.runs is empty %}
+                                                    <span class="d-block py-1 text-body-tertiary">{{ day.day }}</span>
+                                                {% else %}
+                                                    {% set status = statuses[day.status] %}
+                                                    <a class="btn btn-sm w-100 px-0 position-relative {{ status.button }}{{ day.selected ? ' fw-bold kuku-deploy-selected' : '' }}"
+                                                       href="?run={{ day.latest }}&month={{ calendar.month }}"
+                                                       title="{{ day.runs|length }} {{ day.runs|length == 1 ? 'run' : 'runs' }}: {{ status.label|lower }}"
+                                                       {% if day.selected %}aria-current="date" style="box-shadow: 0 0 0 .2rem var(--bs-body-color)"{% endif %}>
+                                                        {{- day.day -}}
+                                                        {% if day.runs|length > 1 %}
+                                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-secondary"
+                                                                  style="font-size: .6rem">{{ day.runs|length }}</span>
+                                                        {% endif %}
+                                                    </a>
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer small text-body-secondary d-flex flex-wrap gap-3">
+                        {% for status in statuses %}
+                            <span><span class="badge {{ status.badge }}">{{ status.icon }}</span> {{ status.label }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if undated is not empty %}
+                    <div class="mt-3 small kuku-deploy-undated">
+                        <div class="text-body-secondary mb-1">Without a date</div>
+                        {% for position, other in undated %}
+                            <a class="btn btn-sm btn-outline-danger mb-1{{ position == selected ? ' active' : '' }}"
+                               href="?run={{ position }}">{{ other.startedAt ?? 'Output outside a deploy run' }}</a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            {# Details of the selected run #}
+            <div class="col-lg-8">
+                {% set status = statuses[run.status] %}
+                <div class="card kuku-deploy-run">
+                    <div class="card-header">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="badge rounded-pill {{ status.badge }}" title="{{ status.label }}">{{ status.icon }}</span>
+                            <span class="fw-semibold fs-5">
+                                {{ run_date ? run_date|date('l, d M Y · H:i') : (run.startedAt ?? 'Output outside a deploy run') }}
+                            </span>
+                            {% if run_ago %}
+                                <span class="text-body-secondary">{{ run_ago }}</span>
+                            {% endif %}
+                            <span class="ms-auto d-flex gap-2">
+                                {% if is_latest %}
+                                    <span class="badge text-bg-primary">latest</span>
+                                {% endif %}
+                                <span class="badge {{ status.badge }}">{{ status.label|lower }}</span>
+                            </span>
+                        </div>
+                        {% if same_day is not empty %}
+                            <nav class="mt-2 small" aria-label="Runs on this day">
+                                <span class="text-body-secondary me-1">Runs this day:</span>
+                                {% for other in same_day %}
+                                    {% set other_status = statuses[other.run.status] %}
+                                    {# The state shows before clicking: outlined in its status color, filled when selected. #}
+                                    <a class="btn btn-sm py-0 {{ other.position == selected ? other_status.button : other_status.outline }}"
+                                       href="?run={{ other.position }}&month={{ calendar.month }}"
+                                       title="{{ other_status.label }}"
+                                       {% if other.position == selected %}aria-current="true"{% endif %}>
+                                        {{- other.run.startedAtDate|date('H:i') -}}
+                                    </a>
+                                {% endfor %}
+                            </nav>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-body p-0">
+                        {% set steps = run.steps %}
+                        {% if steps is empty %}
+                            <p class="text-body-secondary fst-italic m-3">No output.</p>
+                        {% endif %}
+                        {% for step in steps %}
+                            <div class="px-3 py-2{{ not loop.last ? ' border-bottom' : '' }}">
+                                {% if step.title %}
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        {% if step.failed %}
+                                            <span class="text-danger" title="The run stopped here">✕</span>
+                                        {% elseif step.hasErrors %}
+                                            <span class="text-warning fw-bold" title="This step had errors">!</span>
+                                        {% else %}
+                                            <span class="text-success">✓</span>
+                                        {% endif %}
+                                        <span class="fw-semibold">{{ step.title }}</span>
+                                    </div>
+                                {% endif %}
+                                {% if step.lines is not empty %}
+                                    <pre class="small bg-body-tertiary rounded p-2 mb-1 overflow-auto"
+                                         style="max-height: 24rem">
+                                        {#- Twig drops the newline after a tag, so the line breaks are printed explicitly. -#}
+                                        {%- for line in step.styledLines -%}
+                                            {%- if line.class %}<span class="{{ line.class }}">{{ line.text }}</span>{% else %}{{ line.text }}{% endif %}{{ "\n" }}
+                                        {%- endfor -%}
+                                    </pre>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
-        {% endfor %}
-    </div>
+        </div>
+    {% endif %}
 {% endblock %}

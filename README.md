@@ -4,7 +4,10 @@ A small Symfony bundle with system pages for a project:
 
 - **`/system/info/`**: the Symfony and PHP versions as JSON, for monitoring tools such as the KuKu project checker.
 - **About** (optional): the output of the `about` console command.
-- **Deploy log** (optional): the runs of `bin/deploy` from its log file, newest first. Runs that did not finish are marked.
+- **Deploy log** (optional): the runs of `bin/deploy` from its log file. A calendar marks the days with runs in the color
+  of their status (deployed, finished with errors, did not finish); next to it are the details of one run, the newest by
+  default: when it ran, the other runs of that day, and its output split into the deploy steps, with `[OK]` lines in green
+  and errors in red.
 
 ## Installation
 
@@ -52,7 +55,8 @@ _kuku_sfsys_admin:
 ```
 
 This gives `/system/about` (route `kuku_sf_system_about`) and `/system/logview` (route `kuku_sf_system_logview`).
-The pages use Bootstrap 5 markup (the deploy log is an accordion).
+The pages use Bootstrap 5.3 markup and work in light and dark mode; the deploy log only uses links, no JavaScript.
+It takes the query parameters `run` (the run's position in the log, oldest first) and `month` (`Y-m`).
 
 ### Deploy log format
 

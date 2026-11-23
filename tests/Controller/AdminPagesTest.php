@@ -40,7 +40,7 @@ class AdminPagesTest extends TestCase
         return $client;
     }
 
-    public function testLogviewShowsTheRunsNewestFirst(): void
+    public function testLogviewShowsOnlyTheNewestRun(): void
     {
         (new Filesystem())->dumpFile($this->deployLog, implode("\n", [
             '>>>===', 'Mon 1 Jan', 'first deploy', '<<<===',
@@ -51,9 +51,90 @@ class AdminPagesTest extends TestCase
         $crawler = $client->request('GET', '/system/logview');
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        $headers = $crawler->filter('.accordion-button')->each(static fn ($node) => preg_replace('/\s+/', ' ', trim($node->text())));
-        self::assertSame(['Tue 2 Jan did not finish', 'Mon 1 Jan'], $headers);
-        self::assertStringContainsString('second deploy, failed', $crawler->filter('pre')->first()->text());
+        self::assertCount(1, $crawler->filter('.kuku-deploy-run'));
+        $run = $crawler->filter('.kuku-deploy-run');
+        self::assertStringContainsString('Tue 2 Jan', $run->filter('.card-header')->text());
+        self::assertStringContainsString('did not finish', $run->filter('.card-header')->text());
+        self::assertStringContainsString('second deploy, failed', $run->filter('pre')->text());
+        self::assertStringNotContainsString('first deploy', $crawler->filter('body')->text());
+
+        // Runs without a readable date can't go in the calendar; they are listed below it.
+        self::assertSame(['Mon 1 Jan', 'Tue 2 Jan'], $crawler->filter('.kuku-deploy-undated a')->each(static fn ($node) => trim($node->text())));
+
+        $crawler = $client->request('GET', '/system/logview?run=0');
+        self::assertStringContainsString('first deploy', $crawler->filter('.kuku-deploy-run pre')->text());
+    }
+
+    public function testLogviewCalendar(): void
+    {
+        (new Filesystem())->dumpFile($this->deployLog, implode("\n", [
+            '>>>===', 'Fri 16 Oct 2026 01:29:04 PM UTC',
+            '**** Compiling assets ...', 'In AssetMapper.php: Fatal error',
+            '>>>===', 'Wed 18 Nov 2026 08:11:59 PM UTC',
+            '**** Installing composer dependencies ...', 'Nothing to install, update or remove',
+            '**** Executing db migrations ...', ' [OK] Already at the latest version',
+            '<<<===',
+        ]));
+
+        $client = $this->client();
+        $crawler = $client->request('GET', '/system/logview');
+
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('2 runs', $crawler->filter('.kuku-deploy-summary')->text());
+        self::assertStringContainsString('1 with problems', $crawler->filter('.kuku-deploy-summary')->text());
+
+        // The calendar shows the month of the newest run, with its day marked and selected.
+        $calendar = $crawler->filter('.kuku-deploy-calendar');
+        self::assertSame('November 2026', trim($calendar->filter('.card-header .fw-semibold')->text()));
+        self::assertSame(['18'], $calendar->filter('tbody a')->each(static fn ($node) => trim($node->text())));
+        self::assertSame('date', $calendar->filter('tbody a')->attr('aria-current'));
+        self::assertStringContainsString('btn-success', (string) $calendar->filter('tbody a')->attr('class'));
+        // The arrows change the month and keep the selected run.
+        self::assertSame('?run=1&month=2026-10', $calendar->filter('a[title="Earlier runs"]')->attr('href'));
+        self::assertCount(0, $calendar->filter('a[title="Later runs"]'));
+
+        // The details show the newest run, with the [OK] line highlighted.
+        $run = $crawler->filter('.kuku-deploy-run');
+        self::assertStringContainsString('Wednesday, 18 Nov 2026 · 20:11', $run->filter('.card-header')->text());
+        self::assertStringContainsString('latest', $run->filter('.card-header')->text());
+        self::assertStringContainsString('Executing db migrations', $run->text());
+        self::assertSame('[OK] Already at the latest version', trim($run->filter('pre .text-success')->text()));
+
+        // October, and its unfinished run with the step it stopped in.
+        $crawler = $client->request('GET', '/system/logview?run=0&month=2026-10');
+        $calendar = $crawler->filter('.kuku-deploy-calendar');
+        self::assertSame('October 2026', trim($calendar->filter('.card-header .fw-semibold')->text()));
+        self::assertStringContainsString('btn-danger', (string) $calendar->filter('tbody a')->attr('class'));
+        $run = $crawler->filter('.kuku-deploy-run');
+        self::assertStringNotContainsString('latest', $run->filter('.card-header')->text());
+        self::assertSame('In AssetMapper.php: Fatal error', $run->filter('pre .text-danger')->text());
+        self::assertCount(1, $run->filter('[title="The run stopped here"]'));
+
+        // An unknown run or month falls back to the newest run and its month.
+        $crawler = $client->request('GET', '/system/logview?run=99&month=nope');
+        self::assertSame('November 2026', trim($crawler->filter('.kuku-deploy-calendar .card-header .fw-semibold')->text()));
+        self::assertStringContainsString('18 Nov 2026', $crawler->filter('.kuku-deploy-run .card-header')->text());
+    }
+
+    public function testLogviewShowsTheStateOfTheOtherRunsThatDay(): void
+    {
+        (new Filesystem())->dumpFile($this->deployLog, implode("\n", [
+            '>>>===', 'Mon 23 Nov 2026 02:45:58 PM UTC', 'Script cache:clear returned with error code 1', '<<<===',
+            '>>>===', 'Mon 23 Nov 2026 02:55:20 PM UTC', 'stopped',
+            '>>>===', 'Mon 23 Nov 2026 03:04:17 PM UTC', ' [OK] done', '<<<===',
+        ]));
+
+        $client = $this->client();
+        $crawler = $client->request('GET', '/system/logview');
+
+        $buttons = $crawler->filter('nav[aria-label="Runs on this day"] a');
+        self::assertSame(['14:45', '14:55', '15:04'], $buttons->each(static fn ($node) => trim($node->text())));
+        self::assertSame(
+            ['btn-outline-warning', 'btn-outline-danger', 'btn-success'],
+            $buttons->each(static fn ($node) => preg_replace('/^.*\b(btn-(?:outline-)?(?:success|warning|danger))\b.*$/', '$1', (string) $node->attr('class'))),
+        );
+        self::assertSame(['Finished with errors', 'Did not finish', 'Deployed'], $buttons->each(static fn ($node) => $node->attr('title')));
+        self::assertSame('true', $buttons->last()->attr('aria-current'));
     }
 
     public function testLogviewWithoutALogFile(): void
