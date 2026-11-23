@@ -84,6 +84,11 @@ class DeployRunTest extends TestCase
         self::assertSame('text-warning', DeployRun::lineClass('Deprecation Notice: Constant E_STRICT is deprecated since 8.4, the error level was removed'));
         self::assertSame('text-warning', DeployRun::lineClass(' 10/39 [=====>---]  25%Deprecation Notice: the error level was removed'));
         self::assertSame('text-warning', DeployRun::lineClass('    Failed to download symfony/dotenv from dist: The "https://codeload.github.com/x.zip" file could not be downloaded'));
+        // A deprecation logged by Monolog as JSON, from a maxfielder deploy.
+        $json = '{"message":"User Deprecated: The \\"Doctrine\\\\DBAL\\\\Types\\\\DateTimeType\\" type is deprecated.","context":{"exception":{"class":"ErrorException","message":"User Deprecated: ...","code":0}},"level":200,"level_name":"INFO","channel":"deprecation","datetime":"2026-11-23T20:34:01.057368+00:00","extra":{}}';
+        self::assertSame('text-warning', DeployRun::lineClass($json));
+        self::assertSame(DeployRun::STATUS_OK, (new DeployRun('d', "**** Executing db migrations ...\n".$json."\n [OK] Already at the latest version", true))->status());
+        self::assertSame('text-warning', DeployRun::lineClass('User Deprecated: Method "Foo::bar()" is deprecated, the error handler is used'));
         self::assertSame(DeployRun::STATUS_OK, (new DeployRun('d', 'Deprecation Notice: the error level was removed', true))->status());
     }
 }

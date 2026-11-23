@@ -161,8 +161,9 @@ final readonly class DeployRun
     {
         return match (true) {
             // Warnings that mention "error" or "failed" but don't break a deploy: PHP deprecations
-            // (also behind a composer progress bar), and dist downloads that composer retries from source.
-            1 === preg_match('/Deprecation Notice|PHP Deprecated|Failed to download .+ from dist/i', $line) => 'text-warning',
+            // (also behind a composer progress bar, as "User Deprecated" and as Monolog JSON lines
+            // of the deprecation channel), and dist downloads that composer retries from source.
+            1 === preg_match('/Deprecation Notice|(PHP|User) Deprecated|"channel":"deprecation"|Failed to download .+ from dist/i', $line) => 'text-warning',
             1 === preg_match(self::ERROR_PATTERN, $line), str_contains($line, '[KO]') => self::CLASS_ERROR,
             str_contains($line, '[OK]'), str_starts_with($line, 'Successfully') => 'text-success',
             str_starts_with(ltrim($line), '//'), str_starts_with($line, 'Warning') => 'text-body-tertiary',
