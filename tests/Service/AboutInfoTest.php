@@ -177,6 +177,22 @@ class AboutInfoTest extends TestCase
         self::assertArrayHasKey('Free disk space', $rows);
     }
 
+    public function testOpcacheEnabled(): void
+    {
+        // opcache_get_status() can be called: its answer counts.
+        self::assertTrue(AboutInfo::opcacheEnabled(['opcache_enabled' => true], true, '1', '0', 'fpm-fcgi'));
+        self::assertFalse(AboutInfo::opcacheEnabled(['opcache_enabled' => false], true, '1', '0', 'fpm-fcgi'));
+
+        // Blocked by disable_functions, as Plesk does: the settings tell.
+        self::assertTrue(AboutInfo::opcacheEnabled(null, true, '1', '0', 'fpm-fcgi'));
+        self::assertTrue(AboutInfo::opcacheEnabled(null, true, 'On', '', 'fpm-fcgi'));
+        self::assertFalse(AboutInfo::opcacheEnabled(null, true, '0', '0', 'fpm-fcgi'));
+        self::assertFalse(AboutInfo::opcacheEnabled(null, false, '1', '1', 'fpm-fcgi'), 'Extension not loaded');
+        // On the command line opcache.enable_cli decides.
+        self::assertFalse(AboutInfo::opcacheEnabled(null, true, '1', '0', 'cli'));
+        self::assertTrue(AboutInfo::opcacheEnabled(null, true, '1', '1', 'cli'));
+    }
+
     public function testBytes(): void
     {
         self::assertSame('512 B', AboutInfo::bytes(512));

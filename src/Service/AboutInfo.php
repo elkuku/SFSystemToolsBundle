@@ -64,7 +64,15 @@ class AboutInfo
      */
     private function php(): array
     {
-        $opcache = \function_exists('opcache_get_status') ? @opcache_get_status(false) : false;
+        // Hosts like Plesk put opcache_get_status() into disable_functions; then the settings tell.
+        $status = \function_exists('opcache_get_status') ? @opcache_get_status(false) : false;
+        $opcache = self::opcacheEnabled(
+            \is_array($status) ? $status : null,
+            \extension_loaded('Zend OPcache'),
+            (string) \ini_get('opcache.enable'),
+            (string) \ini_get('opcache.enable_cli'),
+            \PHP_SAPI,
+        );
 
         return [
             ['Version', \PHP_VERSION, null],
@@ -73,7 +81,7 @@ class AboutInfo
             ['Max execution time', \ini_get('max_execution_time').' s', null],
             ['Upload max size', (string) \ini_get('upload_max_filesize'), null],
             ['Time zone', date_default_timezone_get(), null],
-            ['OPcache', \is_array($opcache) && ($opcache['opcache_enabled'] ?? false) ? 'enabled' : 'disabled', \is_array($opcache) && ($opcache['opcache_enabled'] ?? false) ? 'ok' : null],
+            ['OPcache', $opcache ? 'enabled' : 'disabled', $opcache ? 'ok' : null],
             ['intl', \extension_loaded('intl') ? 'ICU '.(\defined('INTL_ICU_VERSION') ? \INTL_ICU_VERSION : '?') : 'not loaded', null],
             ['Xdebug', \extension_loaded('xdebug') ? 'loaded' : 'not loaded', \extension_loaded('xdebug') ? 'warning' : null],
         ];
@@ -194,6 +202,23 @@ class AboutInfo
         }
 
         return \array_slice($running, 0, \count($wanted)) === $wanted && $mariaDb($configured) === $mariaDb($actual);
+    }
+
+    /**
+     * Whether OPcache caches this process: from opcache_get_status() if PHP allows calling it,
+     * otherwise from the extension and its opcache.enable (or opcache.enable_cli) setting.
+     *
+     * @param ?array<string, mixed> $status what opcache_get_status() returned, null if it can't be called
+     */
+    public static function opcacheEnabled(?array $status, bool $loaded, string $enable, string $enableCli, string $sapi): bool
+    {
+        if (null !== $status) {
+            return (bool) ($status['opcache_enabled'] ?? false);
+        }
+
+        $on = static fn (string $value): bool => filter_var($value, \FILTER_VALIDATE_BOOLEAN);
+
+        return $loaded && $on($enable) && ('cli' !== $sapi || $on($enableCli));
     }
 
     public static function bytes(float $bytes): string
